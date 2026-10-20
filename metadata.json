@@ -1,0 +1,6 @@
+{
+  "name": "AutoMax - CRM Mecânica",
+  "description": "Sistema CRM completo para oficina mecânica com gestão de clientes, veículos, ordens de serviço em Kanban e histórico integrado.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

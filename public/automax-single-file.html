@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AutoMax - CRM Mecânica (Arquivo Único)</title>
+  <!-- Carregamento do Supabase JS via CDN conforme solicitado -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Tailwind CSS CDN para estilização visual responsiva -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .kanban-col { min-height: 460px; }
+    .kanban-card:hover { transform: translateY(-2px); }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col font-sans">
+
+  <!-- ==================== CABEÇALHO / NAVBAR ==================== -->
+  <header class="bg-slate-900 text-white border-b border-slate-800 sticky top-0 z-30 shadow-md">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-2">
+        <div class="bg-amber-500 text-slate-950 p-2 rounded-xl font-black text-lg">🔧</div>
+        <div>
+          <span class="text-xl font-black tracking-tight font-mono text-white">AUTO<span class="text-amber-400">MAX</span></span>
+          <span class="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-300 ml-1">CRM Mecânica</span>
+        </div>
+      </div>
+
+      <!-- Navegação por Abas -->
+      <nav class="flex items-center gap-1 bg-slate-800 p-1 rounded-xl">
+        <button onclick="mudarAba('painel')" id="tab-painel" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500 text-slate-950">Painel</button>
+        <button onclick="mudarAba('kanban')" id="tab-kanban" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white">Serviços (Kanban)</button>
+        <button onclick="mudarAba('clientes')" id="tab-clientes" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white">Clientes</button>
+        <button onclick="mudarAba('veiculos')" id="tab-veiculos" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white">Veículos</button>
+      </nav>
+
+      <div class="flex items-center gap-2">
+        <button onclick="abrirModalConfig()" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 text-xs font-semibold rounded-lg">⚙️ Supabase</button>
+        <button onclick="abrirModalServico()" class="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold rounded-lg shadow">+ Nova O.S.</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ==================== CONTEÚDO PRINCIPAL ==================== -->
+  <main class="max-w-7xl mx-auto px-4 py-6 flex-1 w-full space-y-6">
+    <!-- Banner de Status Supabase -->
+    <div id="statusSupabaseBanner" class="p-3 bg-slate-900 border border-slate-800 text-white rounded-xl text-xs flex items-center justify-between">
+      <span id="supabaseStatusText">Status do Banco: Conectando ao Supabase...</span>
+      <button onclick="carregarTudo()" class="px-2.5 py-1 bg-amber-500 text-slate-950 rounded-lg text-xs font-bold hover:bg-amber-400">Recarregar Dados</button>
+    </div>
+
+    <!-- ABA 1: PAINEL INICIAL (INDICADORES) -->
+    <section id="view-painel" class="space-y-6">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <span class="text-xs font-bold text-slate-400 uppercase">Total Clientes</span>
+          <div id="metric-clientes" class="text-2xl font-black text-slate-800 mt-2">0</div>
+        </div>
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <span class="text-xs font-bold text-slate-400 uppercase">Total Veículos</span>
+          <div id="metric-veiculos" class="text-2xl font-black text-slate-800 mt-2">0</div>
+        </div>
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <span class="text-xs font-bold text-slate-400 uppercase">Em Andamento</span>
+          <div id="metric-andamento" class="text-2xl font-black text-amber-600 mt-2">0</div>
+        </div>
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <span class="text-xs font-bold text-slate-400 uppercase">Concluídos no Mês</span>
+          <div id="metric-concluidos-mes" class="text-2xl font-black text-emerald-600 mt-2">0</div>
+        </div>
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <span class="text-xs font-bold text-slate-400 uppercase">Faturado no Mês</span>
+          <div id="metric-faturado-mes" class="text-xl font-black text-slate-900 mt-2">R$ 0,00</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ABA 2: KANBAN DE SERVIÇOS -->
+    <section id="view-kanban" class="hidden space-y-4">
+      <div class="flex flex-wrap items-center justify-between gap-3 bg-white p-3 rounded-xl border border-slate-200">
+        <input type="text" id="kanbanSearch" oninput="renderizarKanban()" placeholder="Buscar por placa, modelo ou cliente..." class="p-2 border rounded-lg text-xs w-72" />
+        <button onclick="abrirModalServico()" class="px-3 py-1.5 bg-amber-500 text-slate-950 font-bold text-xs rounded-lg">+ Abrir Serviço</button>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 overflow-x-auto pb-4" id="kanbanColumns"></div>
+    </section>
+
+    <!-- ABA 3: CLIENTES -->
+    <section id="view-clientes" class="hidden space-y-4">
+      <div class="flex flex-wrap items-center justify-between gap-3 bg-white p-3 rounded-xl border border-slate-200">
+        <input type="text" id="clientesSearch" oninput="renderizarClientes()" placeholder="Buscar por nome ou telefone..." class="p-2 border rounded-lg text-xs w-72" />
+        <button onclick="abrirModalCliente()" class="px-3 py-1.5 bg-amber-500 text-slate-950 font-bold text-xs rounded-lg">+ Novo Cliente</button>
+      </div>
+      <div id="listaClientes" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+    </section>
+
+    <!-- ABA 4: VEÍCULOS -->
+    <section id="view-veiculos" class="hidden space-y-4">
+      <div class="flex flex-wrap items-center justify-between gap-3 bg-white p-3 rounded-xl border border-slate-200">
+        <input type="text" id="veiculosSearch" oninput="renderizarVeiculos()" placeholder="Buscar por placa..." class="p-2 border rounded-lg text-xs w-72" />
+        <button onclick="abrirModalVeiculo()" class="px-3 py-1.5 bg-amber-500 text-slate-950 font-bold text-xs rounded-lg">+ Novo Veículo</button>
+      </div>
+      <div id="listaVeiculos" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+    </section>
+  </main>
+
+  <!-- ==================== JAVASCRIPT & SUPABASE ==================== -->
+  <script>
+    // Configurações do Supabase conforme solicitado
+    const SUPABASE_PROJECT_URL = "<COLE_AQUI_A_PROJECT_URL>";
+    const SUPABASE_ANON_KEY = "<COLE_AQUI_A_ANON_KEY>";
+
+    let supabase = null;
+    try {
+      if (window.supabase && SUPABASE_PROJECT_URL !== "<COLE_AQUI_A_PROJECT_URL>") {
+        supabase = window.supabase.createClient(SUPABASE_PROJECT_URL, SUPABASE_ANON_KEY);
+      }
+    } catch (e) {
+      console.warn("Erro ao iniciar Supabase", e);
+    }
+
+    const STATUS_LIST = ['Aguardando', 'Em diagnóstico', 'Aguardando aprovação', 'Em execução', 'Concluído', 'Entregue'];
+    const STATUS_COLORS = {
+      'Aguardando': { bg: 'bg-amber-100 text-amber-800', border: 'border-amber-400' },
+      'Em diagnóstico': { bg: 'bg-purple-100 text-purple-800', border: 'border-purple-400' },
+      'Aguardando aprovação': { bg: 'bg-cyan-100 text-cyan-800', border: 'border-cyan-400' },
+      'Em execução': { bg: 'bg-blue-100 text-blue-800', border: 'border-blue-400' },
+      'Concluído': { bg: 'bg-emerald-100 text-emerald-800', border: 'border-emerald-400' },
+      'Entregue': { bg: 'bg-slate-100 text-slate-800', border: 'border-slate-400' }
+    };
+
+    let clientes = [];
+    let veiculos = [];
+    let servicos = [];
+
+    function mudarAba(aba) {
+      ['painel', 'kanban', 'clientes', 'veiculos'].forEach(a => {
+        document.getElementById('view-' + a).classList.add('hidden');
+        document.getElementById('tab-' + a).className = 'px-3 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white';
+      });
+      document.getElementById('view-' + aba).classList.remove('hidden');
+      document.getElementById('tab-' + aba).className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500 text-slate-950';
+    }
+
+    async function carregarTudo() {
+      const banner = document.getElementById('supabaseStatusText');
+      if (!supabase) {
+        banner.innerHTML = "⚠️ Supabase com credenciais pendentes. Substitua &lt;COLE_AQUI_A_PROJECT_URL&gt; e &lt;COLE_AQUI_A_ANON_KEY&gt; no arquivo.";
+        return;
+      }
+      try {
+        const { data: dCli, error: eCli } = await supabase.from('clientes').select('*').order('criado_em', { ascending: false });
+        if (eCli) throw eCli;
+        clientes = dCli || [];
+
+        const { data: dVei, error: eVei } = await supabase.from('veiculos').select('*, clientes(nome, telefone)').order('criado_em', { ascending: false });
+        if (eVei) throw eVei;
+        veiculos = (dVei || []).map(v => ({ ...v, cliente_nome: v.clientes?.nome }));
+
+        const { data: dSer, error: eSer } = await supabase.from('servicos').select('*, clientes(nome), veiculos(placa, modelo)').order('data_entrada', { ascending: false });
+        if (eSer) throw eSer;
+        servicos = (dSer || []).map(s => ({ ...s, cliente_nome: s.clientes?.nome, veiculo_placa: s.veiculos?.placa, veiculo_modelo: s.veiculos?.modelo }));
+
+        banner.innerHTML = "✅ Conectado ao Supabase com sucesso!";
+        renderizarPainel();
+        renderizarKanban();
+        renderizarClientes();
+        renderizarVeiculos();
+      } catch (err) {
+        banner.innerHTML = "❌ Erro no Supabase: " + err.message;
+      }
+    }
+
+    function renderizarPainel() {
+      document.getElementById('metric-clientes').innerText = clientes.length;
+      document.getElementById('metric-veiculos').innerText = veiculos.length;
+      const andamento = servicos.filter(s => s.status !== 'Concluído' && s.status !== 'Entregue').length;
+      document.getElementById('metric-andamento').innerText = andamento;
+
+      const mesAtual = new Date().getMonth();
+      const concluidos = servicos.filter(s => {
+        if (s.status !== 'Concluído' && s.status !== 'Entregue') return false;
+        const dt = s.data_conclusao ? new Date(s.data_conclusao) : new Date(s.data_entrada);
+        return dt.getMonth() === mesAtual;
+      });
+      document.getElementById('metric-concluidos-mes').innerText = concluidos.length;
+      const totalFaturado = concluidos.reduce((acc, cur) => acc + (Number(cur.valor) || 0), 0);
+      document.getElementById('metric-faturado-mes').innerText = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalFaturado);
+    }
+
+    function renderizarKanban() {
+      const container = document.getElementById('kanbanColumns');
+      const termo = (document.getElementById('kanbanSearch')?.value || '').toLowerCase();
+      container.innerHTML = '';
+
+      STATUS_LIST.forEach(status => {
+        const itens = servicos.filter(s => s.status === status && (
+          (s.veiculo_placa || '').toLowerCase().includes(termo) ||
+          (s.cliente_nome || '').toLowerCase().includes(termo) ||
+          (s.descricao || '').toLowerCase().includes(termo)
+        ));
+
+        const col = document.createElement('div');
+        col.className = 'bg-slate-50 border border-slate-200 rounded-xl p-3 kanban-col flex flex-col';
+        col.innerHTML = \`
+          <div class="flex items-center justify-between pb-2 border-b border-slate-200 mb-2">
+            <span class="text-xs font-bold text-slate-800">\${status}</span>
+            <span class="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-700">\${itens.length}</span>
+          </div>
+          <div class="space-y-2 flex-1" id="col-\${status}"></div>
+        \`;
+
+        const listDiv = col.querySelector(\`#col-\${status}\`);
+        itens.forEach(serv => {
+          const card = document.createElement('div');
+          card.className = 'bg-white p-3 rounded-lg border border-slate-200 shadow-sm kanban-card space-y-1.5 text-xs';
+          const entrada = new Date(serv.data_entrada);
+          const dias = Math.floor((new Date() - entrada) / (1000 * 60 * 60 * 24));
+          card.innerHTML = \`
+            <div class="flex justify-between items-center">
+              <span class="font-mono font-bold bg-slate-900 text-amber-400 px-1.5 py-0.5 rounded text-[10px]">\${serv.veiculo_placa || 'PLACA'}</span>
+              <span class="text-[10px] text-slate-400">\${dias === 0 ? 'Hoje' : dias + 'd atrás'}</span>
+            </div>
+            <div class="font-semibold text-slate-800">\${serv.veiculo_modelo || 'Veículo'} • \${serv.cliente_nome || 'Cliente'}</div>
+            <div class="text-slate-600 text-[11px]">\${serv.descricao}</div>
+            <div class="flex justify-between items-center pt-1 border-t border-slate-100">
+              <span class="font-bold text-slate-900">R$ \${(Number(serv.valor) || 0).toFixed(2)}</span>
+              <select onchange="mudarStatusServico('\${serv.id}', this.value)" class="text-[10px] border rounded bg-slate-50 p-1">
+                \${STATUS_LIST.map(st => \`<option value="\${st}" \${st === serv.status ? 'selected' : ''}>\${st}</option>\`).join('')}
+              </select>
+            </div>
+          \`;
+          listDiv.appendChild(card);
+        });
+
+        container.appendChild(col);
+      });
+    }
+
+    async function mudarStatusServico(id, novoStatus) {
+      if (!supabase) return;
+      try {
+        const updateData = { status: novoStatus };
+        if (novoStatus === 'Concluído' || novoStatus === 'Entregue') {
+          updateData.data_conclusao = new Date().toISOString();
+        }
+        await supabase.from('servicos').update(updateData).eq('id', id);
+        await carregarTudo();
+      } catch (e) {
+        alert('Erro ao atualizar status: ' + e.message);
+      }
+    }
+
+    window.onload = carregarTudo;
+  </script>
+</body>
+</html>
